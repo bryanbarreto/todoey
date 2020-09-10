@@ -10,10 +10,16 @@ import UIKit
 
 class TodoListViewController: UITableViewController {
     
-    var mockup:[String] = ["teste 1","teste 2","teste 3"]
+    var todoeyItems:[String] = []
+    
+    let defaults:UserDefaults = UserDefaults()
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        if let values = defaults.value(forKey: "todoeyItems") {
+            self.todoeyItems = values as! [String]
+        }
     }
     
     //MARK: - Add new Todoey item
@@ -28,7 +34,10 @@ class TodoListViewController: UITableViewController {
         /* codigo que executa ao clicar no botao salvar */
         let actionSave = UIAlertAction(title: "Salvar", style: .default) { (action) in
             if(textField.text!.count > 0){
-                self.mockup.append(textField.text!)
+                
+                self.todoeyItems.append(textField.text!)
+                
+                self.defaults.set(self.todoeyItems, forKey: "todoeyItems")
                 
                 DispatchQueue.main.async {
                     self.tableView.reloadData()
@@ -56,14 +65,14 @@ class TodoListViewController: UITableViewController {
     
     //MARK: - TableView DataSource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return self.mockup.count
+        return self.todoeyItems.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: Constants.reusableCell, for: indexPath)
          
-        cell.textLabel?.text = mockup[indexPath.row]
+        cell.textLabel?.text = todoeyItems[indexPath.row]
         
         return cell
     }
