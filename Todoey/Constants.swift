@@ -10,4 +10,5 @@ import Foundation
 
 class Constants {
     static let reusableCell:String = "ToDoItemCell"
+    static let userDefaultsKey:String = "todoeyItems"
 }

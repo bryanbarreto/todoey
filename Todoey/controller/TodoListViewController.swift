@@ -10,16 +10,19 @@ import UIKit
 
 class TodoListViewController: UITableViewController {
     
-    var todoeyItems:[String] = []
+    var todoeyItems:[Item] = []
     
     let defaults:UserDefaults = UserDefaults()
+    
+    let dataFilePath:URL? = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        if let values = defaults.value(forKey: "todoeyItems") {
-            self.todoeyItems = values as! [String]
+        if let values = defaults.array(forKey: Constants.userDefaultsKey) {
+            self.todoeyItems = values as! [Item]
         }
+        
+        self.loadItems()
     }
     
     //MARK: - Add new Todoey item
@@ -35,13 +38,12 @@ class TodoListViewController: UITableViewController {
         let actionSave = UIAlertAction(title: "Salvar", style: .default) { (action) in
             if(textField.text!.count > 0){
                 
-                self.todoeyItems.append(textField.text!)
+                let newItem:Item = Item(task: textField.text!, isDone: false)
                 
-                self.defaults.set(self.todoeyItems, forKey: "todoeyItems")
+                self.todoeyItems.append(newItem)
                 
-                DispatchQueue.main.async {
-                    self.tableView.reloadData()
-                }
+                self.saveItems()
+                
             }
         }
         
@@ -71,8 +73,12 @@ class TodoListViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: Constants.reusableCell, for: indexPath)
+        
+        let item = todoeyItems[indexPath.row]
          
-        cell.textLabel?.text = todoeyItems[indexPath.row]
+        cell.textLabel?.text = item.task
+        
+        cell.accessoryType = item.isDone ? .checkmark : .none
         
         return cell
     }
@@ -80,18 +86,39 @@ class TodoListViewController: UITableViewController {
     //MARK: - TableView Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        }else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        todoeyItems[indexPath.row].isDone = !todoeyItems[indexPath.row].isDone
+        
+        self.saveItems()
+        
+        //tableView.reloadData()
         
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
-    //MARK: - Show alert with textfield
-    func showAlert(){
+    //MARK: - Model Manipulating
+    func saveItems(){
         
+        let encoder: PropertyListEncoder = PropertyListEncoder()
+        
+        do {
+            let data = try encoder.encode(self.todoeyItems)
+            try data.write(to: self.dataFilePath!)
+        }catch {
+            print("Erro: \(error)")
+        }
+        
+        self.tableView.reloadData()
+    }
+    
+    func loadItems(){
+        if let data = try? Data(contentsOf: self.dataFilePath!){
+            let decoder:PropertyListDecoder = PropertyListDecoder()
+            do{
+                todoeyItems = try decoder.decode([Item].self, from: data)
+            }catch{
+                print("Erro: \(error)")
+            }
+        }
     }
     
 }
