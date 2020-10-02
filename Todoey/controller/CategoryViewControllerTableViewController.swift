@@ -7,18 +7,25 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
+import ChameleonFramework
 
-class CategoryViewControllerTableViewController: UITableViewController {
+class CategoryViewControllerTableViewController: SwipeTableViewController {
     
-    var categories:[Category] = []
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-
+    let realm = try! Realm()
+    
+    var categories: Results<Category>?
+    
     override func viewDidLoad() {
-        
         super.viewDidLoad()
         self.loadCategories()
         
+        self.tableView.separatorStyle = .none
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        navigationController?.navigationBar.backgroundColor = UIColor.systemBlue
+        navigationController?.navigationBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor:UIColor.white]
     }
     
     @IBAction func addCategory(_ sender: UIBarButtonItem) {
@@ -29,12 +36,11 @@ class CategoryViewControllerTableViewController: UITableViewController {
         let saveAction:UIAlertAction = UIAlertAction(title: "Salvar", style: .default) { (action) in
             if textField.text!.count > 0 {
                 
-                let newCategory:Category = Category(context: self.context)
-                newCategory.name = textField.text
+                let newCategory:Category = Category()
+                newCategory.name = textField.text!
+                newCategory.color = UIColor.randomFlat().hexValue()
                 
-                self.categories.append(newCategory)
-                
-                self.saveCategories()
+                self.save(category: newCategory)
             }
         }
         
@@ -58,14 +64,18 @@ class CategoryViewControllerTableViewController: UITableViewController {
     
     //MARK: - Table view datasource methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return self.categories.count
+        return self.categories?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: Constants.categoryCell, for: indexPath)
         
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        cell.textLabel?.text = self.categories[indexPath.row].name
+        cell.textLabel?.text = self.categories?[indexPath.row].name ?? "Nenhuma Categoria Salva"
+        let color = self.categories?[indexPath.row].color
+        cell.backgroundColor = UIColor(hexString: color!)
+        
+         cell.textLabel?.textColor = ContrastColorOf(cell.backgroundColor!, returnFlat: true)
         
         return cell
     }
@@ -80,14 +90,16 @@ class CategoryViewControllerTableViewController: UITableViewController {
         let destinationViewController = segue.destination as! TodoListViewController
         
         if let indexPath = tableView.indexPathForSelectedRow {
-            destinationViewController.selectedCategory = self.categories[indexPath.row]
+            destinationViewController.selectedCategory = self.categories?[indexPath.row]
         }
     }
     
     //MARK: - Data Model manipulation
-    func saveCategories(){
+    func save(category:Category){
         do {
-            try self.context.save()
+            try self.realm.write {
+                realm.add(category)
+            }
             self.tableView.reloadData()
             
         } catch {
@@ -95,14 +107,21 @@ class CategoryViewControllerTableViewController: UITableViewController {
         }
     }
     
-    func loadCategories(with request:NSFetchRequest<Category> = Category.fetchRequest()){
-        do {
-            
-            self.categories = try self.context.fetch(request)
-            self.tableView.reloadData()
-            
-        } catch {
-            print("error loading categories: \(error)")
+    func loadCategories(){
+        self.categories = self.realm.objects(Category.self)
+        
+    }
+    
+    //MARK: - deleting data
+    override func updateModel(at indexPath: IndexPath) {
+        if let category = self.categories?[indexPath.row]{
+            do{
+                try self.realm.write {
+                    self.realm.delete(category)
+                }
+            }catch{
+                print("error deleting category line 105: \(error)")
+            }
         }
     }
     
